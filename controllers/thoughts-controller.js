@@ -1,6 +1,25 @@
 const { User, Thought } = require('../models');
 
 const thoughtController = {
+    //Create new thought (POST)
+    addThought({ params, body }, res) {
+        console.log(body);
+        Thought.create(body)
+            .then(({ _id }) => {
+                return User.findOneAndUpdate(
+                    { _id: params.userId },
+                    { $push: { thoughts: _id } },
+                    { new: true, runValidators: true })
+            })
+            .then(dbUserData => {
+                if (!dbUserData) {
+                    res.status(404).json({ message: 'No user found with this id!' });
+                    return;
+                }
+                res.json(dbUserData);
+            })
+            .catch(err => res.json(err));
+    },
     //Get all thoughts
     getAllThoughts(req, res) {
         Thought.find({})
@@ -14,6 +33,11 @@ const thoughtController = {
     //Get single though by ID
     getThoughtById({ params }, res) {
         Thought.findOne({ _id: params.id })
+            .populate({
+                path: 'user',
+                select: '-__v'
+            })
+            .select('-__v')
             .then((dbThoughtData) => {
                 if (!dbThoughtData) {
                     res.status(404).json({ message: 'No thought found with this id!' });
@@ -25,26 +49,6 @@ const thoughtController = {
                 console.log(err);
                 res.sendStatus(400);
             });
-    },
-    //Create new thought (POST)
-    createThought({ body }, res) {
-        console.log(body);
-        Thought.create(body)
-            .then(({ _id }) => {
-                return User.findOneAndUpdate(
-                    { _id: body.userId },
-                    { $push: { thoughts: _id } },
-                    { new: true }
-                );
-            })
-            .then(dbUserData => {
-                if (!dbUserData) {
-                    res.status(404).json({ message: 'No user found with this id!' })
-                    return;
-                }
-                res.json(dbUserData);
-            })
-            .catch(err => res.json(err));
     },
 
     //Update a thought by ID (PUT)
